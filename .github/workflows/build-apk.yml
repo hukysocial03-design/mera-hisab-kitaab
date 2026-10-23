@@ -18,14 +18,79 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+    - name: Magic Setup - Auto Generate Android Project
+      run: |
+        cat << 'EOF' > settings.gradle.kts
+        pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+        dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+        include(":app")
+        EOF
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+        cat << 'EOF' > app/build.gradle.kts
+        plugins {
+            id("com.android.application") version "8.2.2"
+            id("org.jetbrains.kotlin.android") version "1.9.22"
+            id("org.jetbrains.kotlin.kapt") version "1.9.22"
+        }
+        android {
+            namespace = "com.merahisabkitab.pro"
+            compileSdk = 34
+            defaultConfig {
+                applicationId = "com.merahisabkitab.pro"
+                minSdk = 26
+                targetSdk = 34
+                versionCode = 1
+                versionName = "1.0"
+            }
+            buildFeatures { compose = true }
+            composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
+        }
+        dependencies {
+            implementation("androidx.compose.ui:ui:1.6.0")
+            implementation("androidx.compose.material3:material3:1.2.0")
+            implementation("androidx.activity:activity-compose:1.8.2")
+            val roomVersion = "2.6.1"
+            implementation("androidx.room:room-runtime:\$roomVersion")
+            implementation("androidx.room:room-ktx:\$roomVersion")
+            kapt("androidx.room:room-compiler:\$roomVersion")
+        }
+        EOF
+
+        mkdir -p app/src/main/java/com/merahisabkitab/pro
+        cat << 'EOF' > app/src/main/AndroidManifest.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <application android:allowBackup="true" android:label="Mera Hisab Kitab" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+                <activity android:name=".MainActivity" android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+
+        cat << 'EOF' > app/src/main/java/com/merahisabkitab/pro/MainActivity.kt
+        package com.merahisabkitab.pro
+        import android.os.Bundle
+        import androidx.activity.ComponentActivity
+        import androidx.activity.compose.setContent
+        import androidx.compose.material3.Text
+        class MainActivity : ComponentActivity() {
+            override fun onCreate(savedInstanceState: Bundle?) {
+                super.onCreate(savedInstanceState)
+                setContent { Text("Mera Hisab Kitab Pro - App is Ready!") }
+            }
+        }
+        EOF
+
+        gradle wrapper --gradle-version 8.4
 
     - name: Build Debug APK
-      run: ./gradlew assembleDebug
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
