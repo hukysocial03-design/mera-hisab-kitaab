@@ -1,7 +1,9 @@
-name: Build Android APK
+name: Build Mera Hisab Kitab Pro V5
 
 on:
   push:
+    branches: [ "main", "master" ]
+  pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
@@ -18,53 +20,78 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Magic Setup - Auto Generate Android Project
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Accept Android SDK licenses
+      run: yes | sdkmanager --licenses || true
+
+    - name: Magic Setup - Auto Generate Android Project V5
       run: |
         cat << 'EOF' > gradle.properties
         android.useAndroidX=true
         android.enableJetifier=true
+        org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
         cat << 'EOF' > settings.gradle.kts
-        pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
-        dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+        pluginManagement {
+            repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+            }
+        }
+        dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
         include(":app")
         EOF
 
+        mkdir -p app/src/main/java/com/merahisabkitab/pro
         cat << 'EOF' > app/build.gradle.kts
         plugins {
-            id("com.android.application") version "8.2.2"
-            id("org.jetbrains.kotlin.android") version "1.9.22"
-            id("org.jetbrains.kotlin.kapt") version "1.9.22"
+            id("com.android.application") version "8.5.2"
+            id("org.jetbrains.kotlin.android") version "2.0.21"
+            id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
+            id("com.google.devtools.ksp") version "2.0.21-1.0.27"
         }
         android {
             namespace = "com.merahisabkitab.pro"
-            compileSdk = 34
+            compileSdk = 35
             defaultConfig {
                 applicationId = "com.merahisabkitab.pro"
                 minSdk = 26
-                targetSdk = 34
-                versionCode = 1
-                versionName = "1.0"
+                targetSdk = 35
+                versionCode = 5
+                versionName = "5.0.0"
             }
-            buildFeatures { compose = true }
-            composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
+            buildFeatures {
+                compose = true
+            }
         }
         dependencies {
-            implementation("androidx.compose.ui:ui:1.6.0")
-            implementation("androidx.compose.material3:material3:1.2.0")
-            implementation("androidx.activity:activity-compose:1.8.2")
+            implementation("androidx.core:core-ktx:1.13.1")
+            implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
+            implementation("androidx.activity:activity-compose:1.9.2")
+            implementation(platform("androidx.compose:compose-bom:2024.09.02"))
+            implementation("androidx.compose.ui:ui")
+            implementation("androidx.compose.material3:material3")
+            
             implementation("androidx.room:room-runtime:2.6.1")
             implementation("androidx.room:room-ktx:2.6.1")
-            kapt("androidx.room:room-compiler:2.6.1")
+            ksp("androidx.room:room-compiler:2.6.1")
         }
         EOF
 
-        mkdir -p app/src/main/java/com/merahisabkitab/pro
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <application android:allowBackup="true" android:label="Mera Hisab Kitab" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+            <application android:allowBackup="true" android:label="Mera Hisab Kitab Pro V5" android:theme="@android:style/Theme.Material.Light.NoActionBar">
                 <activity android:name=".MainActivity" android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
@@ -84,20 +111,20 @@ jobs:
         class MainActivity : ComponentActivity() {
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
-                setContent { Text("Mera Hisab Kitab Pro - App is Ready!") }
+                setContent { Text("Mera Hisab Kitab Pro V5 - Premium Edition Ready!") }
             }
         }
         EOF
 
-        gradle wrapper --gradle-version 8.4
+        gradle wrapper --gradle-version 8.7
 
     - name: Build Debug APK
       run: |
         chmod +x gradlew
-        ./gradlew assembleDebug
+        ./gradlew --no-daemon --stacktrace :app:assembleDebug
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Mera-Hisab-Kitab-Pro-Debug
+        name: mera-hisab-kitab-pro-debug-apk
         path: app/build/outputs/apk/debug/app-debug.apk
